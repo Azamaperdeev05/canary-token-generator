@@ -216,6 +216,7 @@ func loadDefaults(k *koanf.Koanf) error {
 			"10.0.0.0/8",
 			"172.16.0.0/12",
 			"192.168.0.0/16",
+			"fc00::/7",
 		},
 
 		"database.max_open_conns":     25,
@@ -408,6 +409,20 @@ func validate(c *Config) error {
 	if c.Server.WriteTimeout <= 0 {
 		return fmt.Errorf("server.write_timeout must be positive")
 	}
+
+	if c.Canary.BaseURL == "" || c.Canary.BaseURL == "https:/" || c.Canary.BaseURL == "http:/" || c.Canary.BaseURL == "https:" || c.Canary.BaseURL == "http:" {
+		c.Canary.BaseURL = defaultCanaryBaseURL
+	} else if !strings.HasPrefix(c.Canary.BaseURL, "http://") && !strings.HasPrefix(c.Canary.BaseURL, "https://") {
+		c.Canary.BaseURL = "https://" + strings.TrimLeft(c.Canary.BaseURL, "/")
+	}
+	c.Canary.BaseURL = strings.TrimRight(c.Canary.BaseURL, "/")
+
+	if c.Canary.ManageURL == "" || c.Canary.ManageURL == "https:/" || c.Canary.ManageURL == "http:/" || c.Canary.ManageURL == "https:" || c.Canary.ManageURL == "http:" {
+		c.Canary.ManageURL = c.Canary.BaseURL
+	} else if !strings.HasPrefix(c.Canary.ManageURL, "http://") && !strings.HasPrefix(c.Canary.ManageURL, "https://") {
+		c.Canary.ManageURL = "https://" + strings.TrimLeft(c.Canary.ManageURL, "/")
+	}
+	c.Canary.ManageURL = strings.TrimRight(c.Canary.ManageURL, "/")
 
 	return nil
 }

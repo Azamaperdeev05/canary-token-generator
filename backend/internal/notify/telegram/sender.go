@@ -234,8 +234,12 @@ func buildMessage(
 		b.WriteString(EscapeMD(truncateRunes(*evt.UserAgent, uaTruncateRunes)))
 	}
 	if manageURL != "" && info.ManageID != "" {
+		mURL := strings.TrimRight(manageURL, "/")
+		if !strings.HasPrefix(mURL, "http://") && !strings.HasPrefix(mURL, "https://") {
+			mURL = "https://" + strings.TrimLeft(mURL, "/")
+		}
 		b.WriteString("\n\n[View full event timeline](")
-		b.WriteString(manageURL + "/m/" + info.ManageID)
+		b.WriteString(mURL + "/m/" + info.ManageID)
 		b.WriteString(")")
 	}
 	return b.String()
