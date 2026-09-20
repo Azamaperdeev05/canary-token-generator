@@ -513,14 +513,17 @@ func (f *fingerprintRecorderAdapter) AttachFingerprint(
 			}
 			info := tok.NotifyInfo()
 			if info.AlertChannel == "telegram" && info.TelegramBot != "" && info.TelegramChat != "" {
-				_ = f.tgSender.SendFingerprintAlert(
+				if err := f.tgSender.SendFingerprintAlert(
 					bgCtx,
 					info.TelegramBot,
 					info.TelegramChat,
 					info.Memo,
 					sourceIP,
 					fingerprint,
-				)
+				); err != nil {
+					slog.WarnContext(bgCtx, "send fingerprint alert failed",
+						"token_id", tokenID, "error", err)
+				}
 			}
 		}()
 	}
