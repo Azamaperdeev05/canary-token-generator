@@ -136,29 +136,58 @@ func (s *Sender) Send(
 		return ErrChannelNotConfigured
 	}
 	endpoint := s.apiBase + "/bot" + info.TelegramBot + "/sendMessage"
-	body, err := json.Marshal(map[string]string{
-		"chat_id":    info.TelegramChat,
-		"text":       buildMessage(info, evt, s.manageURL),
-		"parse_mode": parseModeMarkdownV2,
+
+	rawChats := strings.FieldsFunc(info.TelegramChat, func(r rune) bool {
+		return r == ',' || r == ';'
 	})
-	if err != nil {
-		return fmt.Errorf("telegram: marshal body: %w", err)
+	if len(rawChats) == 0 {
+		return ErrChannelNotConfigured
 	}
 
-	expBackoff := backoff.NewExponentialBackOff()
-	expBackoff.InitialInterval = s.initialInterval
-	expBackoff.MaxInterval = 5 * time.Second
+	msgText := buildMessage(info, evt, s.manageURL)
 
-	_, err = backoff.Retry(
-		ctx,
-		func() (struct{}, error) {
-			return struct{}{}, s.doRequest(ctx, endpoint, body)
-		},
-		backoff.WithBackOff(expBackoff),
-		backoff.WithMaxTries(s.maxTries),
-		backoff.WithMaxElapsedTime(s.maxElapsed),
-	)
-	return err
+	var lastErr error
+	var sentCount int
+
+	for _, chatID := range rawChats {
+		chatID = strings.TrimSpace(chatID)
+		if chatID == "" {
+			continue
+		}
+		body, err := json.Marshal(map[string]string{
+			"chat_id":    chatID,
+			"text":       msgText,
+			"parse_mode": parseModeMarkdownV2,
+		})
+		if err != nil {
+			lastErr = fmt.Errorf("telegram: marshal body for %s: %w", chatID, err)
+			continue
+		}
+
+		expBackoff := backoff.NewExponentialBackOff()
+		expBackoff.InitialInterval = s.initialInterval
+		expBackoff.MaxInterval = 5 * time.Second
+
+		_, err = backoff.Retry(
+			ctx,
+			func() (struct{}, error) {
+				return struct{}{}, s.doRequest(ctx, endpoint, body)
+			},
+			backoff.WithBackOff(expBackoff),
+			backoff.WithMaxTries(s.maxTries),
+			backoff.WithMaxElapsedTime(s.maxElapsed),
+		)
+		if err != nil {
+			lastErr = err
+		} else {
+			sentCount++
+		}
+	}
+
+	if sentCount > 0 {
+		return nil
+	}
+	return lastErr
 }
 
 func (s *Sender) doRequest(
