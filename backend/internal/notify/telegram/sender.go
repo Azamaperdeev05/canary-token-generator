@@ -257,7 +257,7 @@ func buildMessage(
 		b.WriteString(loc)
 	}
 	almatyZone := time.FixedZone("Asia/Almaty", 5*3600)
-	timeFormatted := evt.TriggeredAt.In(almatyZone).Format("2006-01-02 15:04:05 (UTC+5)")
+	timeFormatted := evt.TriggeredAt.In(almatyZone).Format("2006-01-02 15:04:05") + " (UTC+5)"
 	b.WriteString("\n*Уақыты:* ")
 	b.WriteString(EscapeMD(timeFormatted))
 	if evt.UserAgent != nil && *evt.UserAgent != "" {
