@@ -281,11 +281,11 @@ func buildMessage(
 	if extra.Proxy {
 		b.WriteString("\n*Желі түрі:* 🛡 VPN / Прокси арқылы")
 	} else if extra.Hosting {
-		b.WriteString("\n*Желі түрі:* ☁️ Хостинг / Дата-центр")
+		b.WriteString("\n*Желі түрі:* ☁️ Хостинг / Дата\\-центр")
 	} else if extra.Mobile {
-		b.WriteString("\n*Желі түрі:* 📱 Ұялы байланыс (Mobile 4G/5G)")
+		b.WriteString("\n*Желі түрі:* 📱 Ұялы байланыс \\(Mobile 4G/5G\\)")
 	} else if extra.ISP != "" || evt.GeoASNOrg != nil {
-		b.WriteString("\n*Желі түрі:* 🏠 Үй / Офис Wi-Fi (Broadband)")
+		b.WriteString("\n*Желі түрі:* 🏠 Үй / Офис Wi\\-Fi \\(Broadband\\)")
 	}
 
 	if extra.ISP != "" {
