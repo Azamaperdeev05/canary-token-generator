@@ -162,9 +162,8 @@ UPDATE events
  WHERE id = (
      SELECT id FROM events
       WHERE token_id = $1
-        AND source_ip = $2::inet
         AND triggered_at >= NOW() - $4::interval
-      ORDER BY id DESC
+      ORDER BY (source_ip = $2::inet) DESC, id DESC
       LIMIT 1
  )`
 	res, err := r.db.ExecContext(

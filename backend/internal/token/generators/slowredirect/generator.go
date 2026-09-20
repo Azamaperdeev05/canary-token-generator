@@ -26,7 +26,7 @@ const (
 	headerCacheControl = "Cache-Control"
 	headerPragma       = "Pragma"
 
-	cspOverride         = "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'"
+	cspOverride         = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'"
 	cacheControlNoStore = "no-store, no-cache, must-revalidate, max-age=0"
 	pragmaNoCache       = "no-cache"
 	contentTypeHTML     = "text/html; charset=utf-8"

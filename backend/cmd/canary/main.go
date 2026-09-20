@@ -492,15 +492,16 @@ func (f *fingerprintRecorderAdapter) AttachFingerprint(
 	tokenID, sourceIP string,
 	fingerprint json.RawMessage,
 ) error {
-	err := f.repo.AttachFingerprint(
+	dbErr := f.repo.AttachFingerprint(
 		ctx,
 		tokenID,
 		sourceIP,
 		fingerprint,
 		f.window,
 	)
-	if err != nil {
-		return err
+	if dbErr != nil {
+		slog.WarnContext(ctx, "attach fingerprint db update error",
+			"token_id", tokenID, "error", dbErr)
 	}
 
 	if f.tokenRepo != nil && f.tgSender != nil {

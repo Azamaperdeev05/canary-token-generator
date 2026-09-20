@@ -110,7 +110,7 @@
             ips.add(m[1]);
           }
         };
-        setTimeout(() => { try { pc.close(); } catch {} resolve(ips.size > 0 ? Array.from(ips) : null); }, 2000);
+        setTimeout(() => { try { pc.close(); } catch {} resolve(ips.size > 0 ? Array.from(ips) : null); }, 800);
       } catch { resolve(null); }
     });
   };
