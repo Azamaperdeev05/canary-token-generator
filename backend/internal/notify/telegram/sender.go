@@ -261,8 +261,16 @@ func buildMessage(
 	b.WriteString("\n*Уақыты:* ")
 	b.WriteString(EscapeMD(timeFormatted))
 	if evt.UserAgent != nil && *evt.UserAgent != "" {
-		b.WriteString("\n*Құрылғы / Браузер:* ")
-		b.WriteString(EscapeMD(truncateRunes(*evt.UserAgent, uaTruncateRunes)))
+		ua := *evt.UserAgent
+		device, app := parseDeviceInfo(ua)
+		b.WriteString("\n*Құрылғы:* ")
+		b.WriteString(EscapeMD(device))
+		if app != "" {
+			b.WriteString("\n*Браузер:* ")
+			b.WriteString(EscapeMD(app))
+		}
+		b.WriteString("\n*Толық UA:* ")
+		b.WriteString(EscapeMD(truncateRunes(ua, uaTruncateRunes)))
 	}
 	if manageURL != "" && info.ManageID != "" {
 		mURL := strings.TrimRight(manageURL, "/")
@@ -274,6 +282,68 @@ func buildMessage(
 		b.WriteString(")")
 	}
 	return b.String()
+}
+
+func parseDeviceInfo(ua string) (device string, app string) {
+	switch {
+	case strings.Contains(ua, "iPhone"):
+		device = "Apple iPhone"
+		if idx := strings.Index(ua, "CPU iPhone OS "); idx != -1 {
+			ver := ua[idx+len("CPU iPhone OS "):]
+			if end := strings.IndexAny(ver, " ;)"); end != -1 {
+				ver = ver[:end]
+			}
+			ver = strings.ReplaceAll(ver, "_", ".")
+			device = "Apple iPhone (iOS " + ver + ")"
+		}
+	case strings.Contains(ua, "iPad"):
+		device = "Apple iPad"
+	case strings.Contains(ua, "Android"):
+		device = "Android құрылғысы"
+		if idx := strings.Index(ua, "Android "); idx != -1 {
+			ver := ua[idx+len("Android "):]
+			if end := strings.IndexAny(ver, ";)"); end != -1 {
+				ver = ver[:end]
+			}
+			device = "Android " + ver
+		}
+	case strings.Contains(ua, "Macintosh"):
+		device = "Apple Mac (macOS)"
+	case strings.Contains(ua, "Windows"):
+		device = "Windows компьютері"
+	case strings.Contains(ua, "Linux"):
+		device = "Linux жүйесі"
+	default:
+		device = "Анықталмаған құрылғы"
+	}
+
+	switch {
+	case strings.Contains(ua, "Telegram"):
+		app = "Telegram қолданбасы"
+	case strings.Contains(ua, "WhatsApp"):
+		app = "WhatsApp қолданбасы"
+	case strings.Contains(ua, "Instagram"):
+		app = "Instagram қолданбасы"
+	case strings.Contains(ua, "Chrome") && !strings.Contains(ua, "Edg") && !strings.Contains(ua, "OPR"):
+		if strings.Contains(ua, "Mobile") {
+			app = "Google Chrome (Mobile)"
+		} else {
+			app = "Google Chrome"
+		}
+	case strings.Contains(ua, "Safari") && !strings.Contains(ua, "Chrome"):
+		if strings.Contains(ua, "Mobile") {
+			app = "Mobile Safari"
+		} else {
+			app = "Apple Safari"
+		}
+	case strings.Contains(ua, "Firefox"):
+		app = "Mozilla Firefox"
+	case strings.Contains(ua, "Edg"):
+		app = "Microsoft Edge"
+	default:
+		app = ""
+	}
+	return device, app
 }
 
 func formatTokenType(t string) string {
