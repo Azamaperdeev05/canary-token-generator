@@ -108,11 +108,30 @@ func (g *Generator) Trigger(
 		return nil, nil, err
 	}
 
+	extra := make(map[string]any)
+	if al := r.Header.Get("Accept-Language"); al != "" {
+		extra["accept_language"] = al
+	}
+	if m := r.Header.Get("Sec-CH-UA-Model"); m != "" {
+		extra["sec_ch_ua_model"] = strings.Trim(m, `"`)
+	}
+	if p := r.Header.Get("Sec-CH-UA-Platform"); p != "" {
+		extra["sec_ch_ua_platform"] = strings.Trim(p, `"`)
+	}
+	if pv := r.Header.Get("Sec-CH-UA-Platform-Version"); pv != "" {
+		extra["sec_ch_ua_platform_version"] = strings.Trim(pv, `"`)
+	}
+	var extraBytes []byte
+	if len(extra) > 0 {
+		extraBytes, _ = json.Marshal(extra)
+	}
+
 	evt := &event.Event{
 		TokenID:   t.ID,
 		SourceIP:  middleware.RealIP(r),
 		UserAgent: middleware.OptionalHeader(r.UserAgent()),
 		Referer:   middleware.OptionalHeader(r.Header.Get(headerReferer)),
+		Extra:     extraBytes,
 	}
 	return evt, resp, nil
 }

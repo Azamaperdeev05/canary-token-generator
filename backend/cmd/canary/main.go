@@ -102,11 +102,11 @@ func run(configPath string) error {
 	geo, geoCloser := openGeoIP(cfg, logger)
 	defer geoCloser()
 
-	notifySvc, eventSvc := buildEventStack(
+	notifySvc, eventSvc, tgSender := buildEventStack(
 		cfg, logger, eventRepo, tokenRepo, rdb, geo,
 	)
 	tokenSvc, verifier, healthH, tokenH := buildHTTPDeps(
-		cfg, logger, db, rdb, eventRepo, tokenRepo, eventSvc,
+		cfg, logger, db, rdb, eventRepo, tokenRepo, eventSvc, tgSender,
 	)
 	adminH := admin.NewHandler(tokenRepo, eventRepo, tokenSvc, logger)
 	srv := mountRouter(cfg, logger, rdb, healthH, tokenH, adminH, verifier)
@@ -147,6 +147,7 @@ func buildHTTPDeps(
 	eventRepo *event.Repository,
 	tokenRepo *token.Repository,
 	eventSvc *event.Service,
+	tgSender *telegram.Sender,
 ) (*token.Service, *turnstile.Verifier, *health.Handler, *token.Handler) {
 	genRegistry := registry.Build(registry.Config{
 		BaseURL:         cfg.Canary.BaseURL,
@@ -170,8 +171,10 @@ func buildHTTPDeps(
 		tokenSvc,
 		&eventRecorderAdapter{svc: eventSvc},
 		&fingerprintRecorderAdapter{
-			repo:   eventRepo,
-			window: cfg.Notify.FingerprintWindow,
+			repo:      eventRepo,
+			tokenRepo: tokenRepo,
+			tgSender:  tgSender,
+			window:    cfg.Notify.FingerprintWindow,
 		},
 		eventRepo,
 		eventSvc,
@@ -188,7 +191,7 @@ func buildEventStack(
 	tokenRepo *token.Repository,
 	rdb *core.Redis,
 	geo geoip.Lookuper,
-) (*notify.Service, *event.Service) {
+) (*notify.Service, *event.Service, *telegram.Sender) {
 	tgSender := telegram.NewSender(telegram.Config{
 		APIBase:         cfg.Notify.TelegramAPIBase,
 		ManageURL:       cfg.Canary.ManageURL,
@@ -221,7 +224,7 @@ func buildEventStack(
 			GeoIP:    geo,
 		},
 	)
-	return notifySvc, eventSvc
+	return notifySvc, eventSvc, tgSender
 }
 
 func openGeoIP(
@@ -230,9 +233,9 @@ func openGeoIP(
 ) (geoip.Lookuper, func()) {
 	svc, err := geoip.Open(cfg.GeoIP.Path)
 	if err != nil {
-		logger.Warn("geoip unavailable, enrichment disabled",
-			"path", cfg.GeoIP.Path, "error", err)
-		return geoip.NopService(), func() {}
+		logger.Info("local geoip mmdb unavailable, using online geoip/asn fallback",
+			"path", cfg.GeoIP.Path)
+		return geoip.OnlineService(), func() {}
 	}
 	logger.Info("geoip opened", "path", cfg.GeoIP.Path)
 	return svc, func() {
@@ -478,8 +481,10 @@ func (a *eventRecorderAdapter) Record(
 }
 
 type fingerprintRecorderAdapter struct {
-	repo   *event.Repository
-	window time.Duration
+	repo      *event.Repository
+	tokenRepo *token.Repository
+	tgSender  *telegram.Sender
+	window    time.Duration
 }
 
 func (f *fingerprintRecorderAdapter) AttachFingerprint(
@@ -487,13 +492,39 @@ func (f *fingerprintRecorderAdapter) AttachFingerprint(
 	tokenID, sourceIP string,
 	fingerprint json.RawMessage,
 ) error {
-	return f.repo.AttachFingerprint(
+	err := f.repo.AttachFingerprint(
 		ctx,
 		tokenID,
 		sourceIP,
 		fingerprint,
 		f.window,
 	)
+	if err != nil {
+		return err
+	}
+
+	if f.tokenRepo != nil && f.tgSender != nil {
+		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			tok, tErr := f.tokenRepo.GetByID(bgCtx, tokenID)
+			if tErr != nil || tok == nil {
+				return
+			}
+			info := tok.NotifyInfo()
+			if info.AlertChannel == "telegram" && info.TelegramBot != "" && info.TelegramChat != "" {
+				_ = f.tgSender.SendFingerprintAlert(
+					bgCtx,
+					info.TelegramBot,
+					info.TelegramChat,
+					info.Memo,
+					sourceIP,
+					fingerprint,
+				)
+			}
+		}()
+	}
+	return nil
 }
 
 type mysqlTokenLookup struct{ svc *token.Service }

