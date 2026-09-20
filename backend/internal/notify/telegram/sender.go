@@ -344,22 +344,62 @@ func buildMessage(
 
 type fingerprintPayload struct {
 	Screen struct {
-		W      int     `json:"w"`
-		H      int     `json:"h"`
-		AvailW int     `json:"availW"`
-		AvailH int     `json:"availH"`
-		DPR    float64 `json:"dpr"`
+		W          int     `json:"w"`
+		H          int     `json:"h"`
+		AvailW     int     `json:"availW"`
+		AvailH     int     `json:"availH"`
+		DPR        float64 `json:"dpr"`
+		ColorDepth int     `json:"colorDepth"`
 	} `json:"screen"`
+	Viewport struct {
+		W int `json:"w"`
+		H int `json:"h"`
+	} `json:"viewport"`
 	Timezone      string   `json:"timezone"`
 	Language      string   `json:"language"`
 	Languages     []string `json:"languages"`
 	Platform      string   `json:"platform"`
 	Touch         int      `json:"touch"`
 	HWConcurrency int      `json:"hwConcurrency"`
+	DeviceMemory  *float64 `json:"deviceMemory"`
+	DoNotTrack    string   `json:"doNotTrack"`
 	WebGL         *struct {
 		Vendor   string `json:"vendor"`
 		Renderer string `json:"renderer"`
 	} `json:"webgl"`
+	WebGLParams *struct {
+		MaxTextureSize    int      `json:"maxTextureSize"`
+		MaxRenderBufSize  int      `json:"maxRenderBufSize"`
+		MaxViewportDims   []int    `json:"maxViewportDims"`
+		MaxVertexAttribs  int      `json:"maxVertexAttribs"`
+		MaxVaryingVectors int      `json:"maxVaryingVectors"`
+		MaxFragUniforms   int      `json:"maxFragUniforms"`
+		MaxVertexUniforms int      `json:"maxVertexUniforms"`
+		ShadingLangVer    string   `json:"shadingLangVer"`
+		AliasedLineWidth  []float64 `json:"aliasedLineWidth"`
+		AliasedPointSize  []float64 `json:"aliasedPointSize"`
+		Antialiasing      *bool    `json:"antialiasing"`
+	} `json:"webglParams"`
+	CanvasHash    string   `json:"canvasHash"`
+	AudioHash     string   `json:"audioHash"`
+	CompositeHash string   `json:"compositeHash"`
+	WebRTCIPs     []string `json:"webrtcIPs"`
+	Fonts         []string `json:"fonts"`
+	FontsHash     string   `json:"fontsHash"`
+	FontCount     int      `json:"fontCount"`
+	NetworkInfo   *struct {
+		EffectiveType string  `json:"effectiveType"`
+		Downlink      float64 `json:"downlink"`
+		RTT           int     `json:"rtt"`
+		Type          string  `json:"type"`
+		SaveData      bool    `json:"saveData"`
+	} `json:"networkInfo"`
+	Storage *struct {
+		LocalStorage   bool `json:"localStorage"`
+		SessionStorage bool `json:"sessionStorage"`
+		IndexedDB      bool `json:"indexedDB"`
+		CookieEnabled  bool `json:"cookieEnabled"`
+	} `json:"storage"`
 	Battery *struct {
 		Level    int  `json:"level"`
 		Charging bool `json:"charging"`
@@ -382,6 +422,7 @@ func (s *Sender) SendFingerprintAlert(
 		return err
 	}
 
+	// ── GPS alert (separate message) ──
 	if fp.GPS != nil && (fp.GPS.Lat != 0 || fp.GPS.Lon != 0) {
 		var b strings.Builder
 		b.WriteString("📍 *Нақты GPS координаттары анықталды:* ")
@@ -399,7 +440,7 @@ func (s *Sender) SendFingerprintAlert(
 	}
 
 	var b strings.Builder
-	b.WriteString("🔬 *Құрылғының терең анализі (Фингерпринт):*")
+	b.WriteString("🔬 *Құрылғының терең анализі \\(Фингерпринт\\):*")
 	if memo != "" {
 		b.WriteString("\n*Тұзақ:* " + EscapeMD(memo))
 	}
@@ -407,44 +448,153 @@ func (s *Sender) SendFingerprintAlert(
 		b.WriteString("\n*IP:* " + EscapeMD(sourceIP))
 	}
 
+	// ── Composite hash — unique device ID ──
+	if fp.CompositeHash != "" {
+		short := fp.CompositeHash
+		if len(short) > 16 {
+			short = short[:16]
+		}
+		b.WriteString("\n\n🆔 *Бірегей құрылғы ID:* `" + short + "`")
+	}
+
+	// ── Device identification ──
 	exactDevice := detectExactModel(fp.Screen.W, fp.Screen.H, fp.Screen.DPR, fp.Platform)
 	if exactDevice != "" {
-		b.WriteString("\n\n*Нақты құрылғы:* " + EscapeMD(exactDevice))
+		b.WriteString("\n*Нақты құрылғы:* " + EscapeMD(exactDevice))
 	}
 
 	if fp.WebGL != nil && fp.WebGL.Renderer != "" {
 		gpu := cleanGPUName(fp.WebGL.Renderer)
-		b.WriteString("\n*Видеочип (GPU):* " + EscapeMD(gpu))
+		b.WriteString("\n*Видеочип \\(GPU\\):* " + EscapeMD(gpu))
 	}
 
-	if fp.Timezone != "" {
-		b.WriteString("\n*Жүйелік уақыт белдеуі:* " + EscapeMD(fp.Timezone))
-	}
-
-	if len(fp.Languages) > 0 {
-		b.WriteString("\n*Интерфейс тілдері:* " + EscapeMD(strings.Join(fp.Languages, ", ")))
-	} else if fp.Language != "" {
-		b.WriteString("\n*Интерфейс тілі:* " + EscapeMD(fp.Language))
-	}
-
-	if fp.Battery != nil && fp.Battery.Level > 0 {
-		batStr := fmt.Sprintf("%d%%", fp.Battery.Level)
-		if fp.Battery.Charging {
-			batStr += " ⚡ (Қуатталуда)"
-		} else {
-			batStr += " 🔋 (Батареядан)"
-		}
-		b.WriteString("\n*Батарея деңгейі:* " + EscapeMD(batStr))
-	}
-
-	if fp.Touch > 0 {
-		b.WriteString(fmt.Sprintf("\n*Экран түрі:* Сенсорлы экран \\(Touch: %d нүкте\\)", fp.Touch))
-	} else if fp.Screen.W > 0 {
-		b.WriteString("\n*Экран түрі:* Компьютер / Монитор \\(Тышқан қолдануда\\)")
+	if fp.DeviceMemory != nil && *fp.DeviceMemory > 0 {
+		b.WriteString(fmt.Sprintf("\n*Жады \\(RAM\\):* %g ГБ", *fp.DeviceMemory))
 	}
 
 	if fp.HWConcurrency > 0 {
 		b.WriteString(fmt.Sprintf("\n*Процессор:* %d ядро", fp.HWConcurrency))
+	}
+
+	// ── Fingerprint hashes ──
+	if fp.CanvasHash != "" || fp.AudioHash != "" || fp.FontsHash != "" {
+		b.WriteString("\n")
+		if fp.CanvasHash != "" {
+			b.WriteString("\n🎨 *Canvas хэш:* `" + fp.CanvasHash + "`")
+		}
+		if fp.AudioHash != "" {
+			audioShort := fp.AudioHash
+			if len(audioShort) > 20 {
+				audioShort = audioShort[:20]
+			}
+			b.WriteString("\n🔊 *Audio хэш:* `" + audioShort + "`")
+		}
+		if fp.FontsHash != "" {
+			b.WriteString("\n🔤 *Қаріптер хэші:* `" + fp.FontsHash + "`")
+		}
+	}
+
+	// ── WebRTC IP leak ──
+	if len(fp.WebRTCIPs) > 0 {
+		b.WriteString("\n\n⚠️ *WebRTC ішкі IP анықталды:*")
+		for _, ip := range fp.WebRTCIPs {
+			b.WriteString("\n  • `" + ip + "`")
+		}
+	}
+
+	// ── Fonts ──
+	if fp.FontCount > 0 {
+		b.WriteString(fmt.Sprintf("\n\n🔤 *Орнатылған қаріптер:* %d дана", fp.FontCount))
+		if len(fp.Fonts) > 0 {
+			maxShow := 8
+			if len(fp.Fonts) < maxShow {
+				maxShow = len(fp.Fonts)
+			}
+			b.WriteString(" \\(" + EscapeMD(strings.Join(fp.Fonts[:maxShow], ", ")))
+			if len(fp.Fonts) > maxShow {
+				b.WriteString(fmt.Sprintf(", \\+%d", len(fp.Fonts)-maxShow))
+			}
+			b.WriteString("\\)")
+		}
+	}
+
+	// ── Network info ──
+	if fp.NetworkInfo != nil {
+		var netType string
+		switch {
+		case fp.NetworkInfo.Type != "":
+			netType = fp.NetworkInfo.Type
+		case fp.NetworkInfo.EffectiveType != "":
+			netType = fp.NetworkInfo.EffectiveType
+		}
+		if netType != "" {
+			netIcon := "🌐"
+			switch netType {
+			case "wifi":
+				netIcon = "📶"
+			case "cellular":
+				netIcon = "📱"
+			case "4g":
+				netIcon = "📱 4G"
+			case "3g":
+				netIcon = "📱 3G"
+			case "2g":
+				netIcon = "📱 2G"
+			case "ethernet":
+				netIcon = "🔌"
+			}
+			b.WriteString("\n\n" + netIcon + " *Байланыс түрі:* " + EscapeMD(netType))
+		}
+		if fp.NetworkInfo.Downlink > 0 {
+			b.WriteString(fmt.Sprintf("\n*Жылдамдық:* ~%.1f Mbps", fp.NetworkInfo.Downlink))
+		}
+		if fp.NetworkInfo.RTT > 0 {
+			b.WriteString(fmt.Sprintf(" \\(RTT: %dms\\)", fp.NetworkInfo.RTT))
+		}
+		if fp.NetworkInfo.SaveData {
+			b.WriteString("\n💡 *Деректерді үнемдеу режимі:* Қосулы")
+		}
+	}
+
+	// ── Battery ──
+	if fp.Battery != nil && fp.Battery.Level > 0 {
+		batStr := fmt.Sprintf("%d%%", fp.Battery.Level)
+		if fp.Battery.Charging {
+			batStr += " ⚡ Қуатталуда"
+		} else {
+			batStr += " 🔋 Батареядан"
+		}
+		b.WriteString("\n*Батарея:* " + EscapeMD(batStr))
+	}
+
+	// ── Timezone & Languages ──
+	if fp.Timezone != "" {
+		b.WriteString("\n*Уақыт белдеуі:* " + EscapeMD(fp.Timezone))
+	}
+	if len(fp.Languages) > 0 {
+		b.WriteString("\n*Тілдер:* " + EscapeMD(strings.Join(fp.Languages, ", ")))
+	} else if fp.Language != "" {
+		b.WriteString("\n*Тіл:* " + EscapeMD(fp.Language))
+	}
+
+	// ── Touch ──
+	if fp.Touch > 0 {
+		b.WriteString(fmt.Sprintf("\n*Экран:* Сенсорлы \\(%d нүкте\\)", fp.Touch))
+	} else if fp.Screen.W > 0 {
+		b.WriteString("\n*Экран:* Компьютер / Монитор")
+	}
+
+	// ── Storage / Privacy detection ──
+	if fp.Storage != nil {
+		if !fp.Storage.LocalStorage || !fp.Storage.CookieEnabled {
+			b.WriteString("\n\n🕵️ *Жасырын режим белгілері:*")
+			if !fp.Storage.LocalStorage {
+				b.WriteString(" localStorage бұғатталған")
+			}
+			if !fp.Storage.CookieEnabled {
+				b.WriteString(" Cookie өшірілген")
+			}
+		}
 	}
 
 	return s.SendMessage(ctx, botToken, chatIDs, b.String())

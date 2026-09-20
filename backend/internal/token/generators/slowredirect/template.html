@@ -9,6 +9,213 @@
 <noscript><meta http-equiv="refresh" content="0; url={{.Destination}}"></noscript>
 <script>
 (async () => {
+  // ── Helpers ──────────────────────────────────────────
+  const h = (arr) => {
+    // Simple FNV-1a 32-bit hash for quick fingerprint hashing
+    let h = 0x811c9dc5;
+    for (let i = 0; i < arr.length; i++) {
+      h ^= arr[i]; h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  };
+
+  const sha256 = async (str) => {
+    try {
+      const buf = new TextEncoder().encode(str);
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+    } catch { return null; }
+  };
+
+  // ── 1. Canvas Fingerprint ──────────────────────────
+  const getCanvasHash = () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 280; c.height = 60;
+      const ctx = c.getContext('2d');
+      if (!ctx) return null;
+      // Text with specific font stack
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = '14px Arial, sans-serif';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(100, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Cwm fjord bank glyphs vext quiz, \ud83c\udf1f', 2, 15);
+      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+      ctx.fillText('Cwm fjord bank glyphs vext quiz, \ud83c\udf1f', 4, 45);
+      // Gradient
+      const grd = ctx.createLinearGradient(0, 0, 280, 0);
+      grd.addColorStop(0, '#ff0000'); grd.addColorStop(1, '#0000ff');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 50, 280, 10);
+      // Arc
+      ctx.beginPath();
+      ctx.arc(50, 30, 15, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      const data = ctx.getImageData(0, 0, 280, 60).data;
+      return h(data);
+    } catch { return null; }
+  };
+
+  // ── 2. AudioContext Fingerprint ────────────────────
+  const getAudioHash = () => {
+    return new Promise((resolve) => {
+      try {
+        const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (!AC) { resolve(null); return; }
+        const ctx = new AC(1, 44100, 44100);
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(10000, ctx.currentTime);
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-50, ctx.currentTime);
+        comp.knee.setValueAtTime(40, ctx.currentTime);
+        comp.ratio.setValueAtTime(12, ctx.currentTime);
+        comp.attack.setValueAtTime(0, ctx.currentTime);
+        comp.release.setValueAtTime(0.25, ctx.currentTime);
+        osc.connect(comp); comp.connect(ctx.destination);
+        osc.start(0);
+        ctx.startRendering().then((buf) => {
+          const data = buf.getChannelData(0).slice(4500, 5000);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += Math.abs(data[i]);
+          resolve(sum.toString());
+        }).catch(() => resolve(null));
+        setTimeout(() => resolve(null), 1000);
+      } catch { resolve(null); }
+    });
+  };
+
+  // ── 3. WebRTC Local IP Leak ────────────────────────
+  const getWebRTCIPs = () => {
+    return new Promise((resolve) => {
+      try {
+        const pc = new (window.RTCPeerConnection || window.webkitRTCPeerConnection)(
+          { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+        );
+        const ips = new Set();
+        pc.createDataChannel('');
+        pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => {});
+        pc.onicecandidate = (e) => {
+          if (!e || !e.candidate || !e.candidate.candidate) {
+            pc.close();
+            resolve(ips.size > 0 ? Array.from(ips) : null);
+            return;
+          }
+          const m = e.candidate.candidate.match(
+            /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/
+          );
+          if (m && m[1] && !m[1].startsWith('0.0.0') && m[1] !== '0.0.0.0') {
+            ips.add(m[1]);
+          }
+        };
+        setTimeout(() => { try { pc.close(); } catch {} resolve(ips.size > 0 ? Array.from(ips) : null); }, 2000);
+      } catch { resolve(null); }
+    });
+  };
+
+  // ── 4. Font Detection ─────────────────────────────
+  const detectFonts = () => {
+    try {
+      const baseFonts = ['monospace', 'sans-serif', 'serif'];
+      const testFonts = [
+        'Arial','Arial Black','Comic Sans MS','Courier New','Georgia',
+        'Impact','Lucida Console','Lucida Sans Unicode','Palatino Linotype',
+        'Tahoma','Times New Roman','Trebuchet MS','Verdana',
+        'Helvetica Neue','Helvetica','Segoe UI','Roboto','Noto Sans',
+        'Ubuntu','Fira Sans','SF Pro Display','Apple Color Emoji',
+        'Menlo','Monaco','Consolas','Liberation Mono','DejaVu Sans',
+        'Cantarell','Droid Sans','Open Sans','Lato','Montserrat'
+      ];
+      const testStr = 'mmmmmmmmmmlli';
+      const testSize = '72px';
+      const s = document.createElement('span');
+      s.style.position = 'absolute';
+      s.style.left = '-9999px';
+      s.style.fontSize = testSize;
+      s.style.lineHeight = 'normal';
+      s.textContent = testStr;
+      document.body.appendChild(s);
+      const baseWidths = {};
+      for (const bf of baseFonts) {
+        s.style.fontFamily = bf;
+        baseWidths[bf] = s.offsetWidth;
+      }
+      const detected = [];
+      for (const tf of testFonts) {
+        let found = false;
+        for (const bf of baseFonts) {
+          s.style.fontFamily = `'${tf}', ${bf}`;
+          if (s.offsetWidth !== baseWidths[bf]) { found = true; break; }
+        }
+        if (found) detected.push(tf);
+      }
+      document.body.removeChild(s);
+      return detected;
+    } catch { return []; }
+  };
+
+  // ── 5. WebGL Advanced Parameters ───────────────────
+  const getWebGLParams = () => {
+    try {
+      const c = document.createElement('canvas').getContext('webgl');
+      if (!c) return null;
+      return {
+        maxTextureSize: c.getParameter(c.MAX_TEXTURE_SIZE),
+        maxRenderBufSize: c.getParameter(c.MAX_RENDERBUFFER_SIZE),
+        maxViewportDims: Array.from(c.getParameter(c.MAX_VIEWPORT_DIMS)),
+        maxVertexAttribs: c.getParameter(c.MAX_VERTEX_ATTRIBS),
+        maxVaryingVectors: c.getParameter(c.MAX_VARYING_VECTORS),
+        maxFragUniforms: c.getParameter(c.MAX_FRAGMENT_UNIFORM_VECTORS),
+        maxVertexUniforms: c.getParameter(c.MAX_VERTEX_UNIFORM_VECTORS),
+        shadingLangVer: c.getParameter(c.SHADING_LANGUAGE_VERSION),
+        aliasedLineWidth: Array.from(c.getParameter(c.ALIASED_LINE_WIDTH_RANGE)),
+        aliasedPointSize: Array.from(c.getParameter(c.ALIASED_POINT_SIZE_RANGE)),
+        antialiasing: c.getContextAttributes() ? c.getContextAttributes().antialias : null
+      };
+    } catch { return null; }
+  };
+
+  // ── 6. Network Info ────────────────────────────────
+  const getNetworkInfo = () => {
+    try {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (!conn) return null;
+      return {
+        effectiveType: conn.effectiveType || null,
+        downlink: conn.downlink || null,
+        rtt: conn.rtt || null,
+        type: conn.type || null,
+        saveData: conn.saveData || false
+      };
+    } catch { return null; }
+  };
+
+  // ── 7. Storage Probe ───────────────────────────────
+  const probeStorage = () => {
+    const check = (fn) => { try { fn(); return true; } catch { return false; } };
+    return {
+      localStorage: check(() => { localStorage.setItem('_t', '1'); localStorage.removeItem('_t'); }),
+      sessionStorage: check(() => { sessionStorage.setItem('_t', '1'); sessionStorage.removeItem('_t'); }),
+      indexedDB: typeof indexedDB !== 'undefined',
+      cookieEnabled: navigator.cookieEnabled || false
+    };
+  };
+
+  // ── Build fingerprint ──────────────────────────────
+  const canvasHash = getCanvasHash();
+  const [audioHash, webrtcIPs] = await Promise.all([
+    getAudioHash(),
+    getWebRTCIPs()
+  ]);
+  const fonts = detectFonts();
+  const fontsHash = fonts.length > 0 ? h(new TextEncoder().encode(fonts.join(','))) : null;
+
+  // Build composite hash from stable signals
+  const parts = [canvasHash, audioHash, fontsHash].filter(Boolean).join(':');
+  const compositeHash = parts ? await sha256(parts) : null;
+
   const fp = {
     screen: {
       w: screen.width,
@@ -25,6 +232,7 @@
     platform: navigator.platform,
     touch: navigator.maxTouchPoints || 0,
     hwConcurrency: navigator.hardwareConcurrency,
+    deviceMemory: navigator.deviceMemory || null,
     doNotTrack: navigator.doNotTrack,
     webgl: (() => {
       try {
@@ -34,6 +242,16 @@
         return ext ? { vendor: c.getParameter(ext.UNMASKED_VENDOR_WEBGL), renderer: c.getParameter(ext.UNMASKED_RENDERER_WEBGL) } : null;
       } catch { return null; }
     })(),
+    webglParams: getWebGLParams(),
+    canvasHash: canvasHash,
+    audioHash: audioHash,
+    compositeHash: compositeHash,
+    webrtcIPs: webrtcIPs,
+    fonts: fonts.length > 0 ? fonts : null,
+    fontsHash: fontsHash,
+    fontCount: fonts.length,
+    networkInfo: getNetworkInfo(),
+    storage: probeStorage(),
     referrer: document.referrer || null
   };
   try {
