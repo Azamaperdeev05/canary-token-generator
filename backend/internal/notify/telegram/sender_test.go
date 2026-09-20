@@ -177,14 +177,14 @@ func TestSender_Send_MessageContainsKeyFields(t *testing.T) {
 	require.NoError(t, json.Unmarshal(loadBody(t, cap), &body))
 	text := body["text"]
 
-	require.Contains(t, text, "Canary triggered")
+	require.Contains(t, text, "Тұзақ іске қосылды")
 	require.Contains(
 		t,
 		text,
 		`prod\-db\-creds`,
 		"memo escaped (- is V2 special)",
 	)
-	require.Contains(t, text, "envfile")
+	require.Contains(t, text, `\.env`)
 	require.Contains(t, text, `203\.0\.113\.45`, "IP dots escaped")
 	require.Contains(t,
 		text,
@@ -192,7 +192,7 @@ func TestSender_Send_MessageContainsKeyFields(t *testing.T) {
 		"geo wrapping parens escaped (V2 reserved chars)",
 	)
 	require.Contains(t, text, `Cloudflare, Inc\.`, "asn_org . escaped")
-	require.Contains(t, text, "View full event timeline", "manage link present")
+	require.Contains(t, text, "Толық оқиғалар журналын көру", "manage link present")
 	require.Contains(t,
 		text,
 		"https://canary.example.com/m/"+testManageID,

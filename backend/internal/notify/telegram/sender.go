@@ -246,20 +246,22 @@ func buildMessage(
 	manageURL string,
 ) string {
 	var b strings.Builder
-	b.WriteString("🚨 *Canary triggered:* ")
+	b.WriteString("🚨 *Тұзақ іске қосылды:* ")
 	b.WriteString(EscapeMD(info.Memo))
-	b.WriteString("\n\n*Type:* ")
-	b.WriteString(EscapeMD(info.Type))
-	b.WriteString("\n*From:* ")
+	b.WriteString("\n\n*Түрі:* ")
+	b.WriteString(EscapeMD(formatTokenType(info.Type)))
+	b.WriteString("\n*IP адресі:* ")
 	b.WriteString(EscapeMD(evt.SourceIP))
 	if loc := formatGeo(evt); loc != "" {
 		b.WriteString(" ")
 		b.WriteString(loc)
 	}
-	b.WriteString("\n*Time:* ")
-	b.WriteString(EscapeMD(evt.TriggeredAt.UTC().Format(time.RFC3339)))
+	almatyZone := time.FixedZone("Asia/Almaty", 5*3600)
+	timeFormatted := evt.TriggeredAt.In(almatyZone).Format("2006-01-02 15:04:05 (UTC+5)")
+	b.WriteString("\n*Уақыты:* ")
+	b.WriteString(EscapeMD(timeFormatted))
 	if evt.UserAgent != nil && *evt.UserAgent != "" {
-		b.WriteString("\n*UA:* ")
+		b.WriteString("\n*Құрылғы / Браузер:* ")
 		b.WriteString(EscapeMD(truncateRunes(*evt.UserAgent, uaTruncateRunes)))
 	}
 	if manageURL != "" && info.ManageID != "" {
@@ -267,11 +269,32 @@ func buildMessage(
 		if !strings.HasPrefix(mURL, "http://") && !strings.HasPrefix(mURL, "https://") {
 			mURL = "https://" + strings.TrimLeft(mURL, "/")
 		}
-		b.WriteString("\n\n[View full event timeline](")
+		b.WriteString("\n\n[Толық оқиғалар журналын көру](")
 		b.WriteString(mURL + "/m/" + info.ManageID)
 		b.WriteString(")")
 	}
 	return b.String()
+}
+
+func formatTokenType(t string) string {
+	switch t {
+	case "slowredirect":
+		return "Сілтеме тұзағы (Slow Redirect)"
+	case "webbug":
+		return "Веб-пиксель (Web Bug)"
+	case "docx":
+		return "Word құжаты (DOCX)"
+	case "pdf":
+		return "PDF құжаты"
+	case "kubeconfig":
+		return "Kubeconfig файлы"
+	case "envfile":
+		return ".env файлы"
+	case "mysql":
+		return "MySQL деректер базасы"
+	default:
+		return t
+	}
 }
 
 func formatGeo(evt *event.Event) string {
