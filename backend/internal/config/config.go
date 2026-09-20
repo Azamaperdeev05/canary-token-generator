@@ -273,7 +273,7 @@ func loadDefaults(k *koanf.Koanf) error {
 		"mysql.public_host": "localhost",
 		"mysql.public_port": 3306,
 
-		"notify.dedup_ttl":           "15m",
+		"notify.dedup_ttl":           "30s",
 		"notify.send_timeout":        "30s",
 		"notify.max_tries":           3,
 		"notify.max_elapsed":         "30s",
