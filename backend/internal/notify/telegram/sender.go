@@ -469,7 +469,7 @@ func (s *Sender) SendFingerprintAlert(
 	}
 
 	if fp.DeviceMemory != nil && *fp.DeviceMemory > 0 {
-		b.WriteString(fmt.Sprintf("\n*Жады \\(RAM\\):* %g ГБ", *fp.DeviceMemory))
+		b.WriteString("\n*Жады \\(RAM\\):* " + EscapeMD(fmt.Sprintf("%g ГБ", *fp.DeviceMemory)))
 	}
 
 	if fp.HWConcurrency > 0 {
@@ -546,7 +546,7 @@ func (s *Sender) SendFingerprintAlert(
 			b.WriteString("\n\n" + netIcon + " *Байланыс түрі:* " + EscapeMD(netType))
 		}
 		if fp.NetworkInfo.Downlink > 0 {
-			b.WriteString(fmt.Sprintf("\n*Жылдамдық:* ~%.1f Mbps", fp.NetworkInfo.Downlink))
+			b.WriteString("\n*Жылдамдық:* " + EscapeMD(fmt.Sprintf("~%.1f Mbps", fp.NetworkInfo.Downlink)))
 		}
 		if fp.NetworkInfo.RTT > 0 {
 			b.WriteString(fmt.Sprintf(" \\(RTT: %dms\\)", fp.NetworkInfo.RTT))
