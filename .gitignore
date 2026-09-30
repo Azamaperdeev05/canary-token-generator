@@ -33,11 +33,13 @@ backend/builddocxtemplate
 # ----------------------------------------------------------------------------
 # Frontend (Node / Vite)
 # ----------------------------------------------------------------------------
+node_modules/
+dist/
+.vite/
+.vite-temp/
+.tmp/
 frontend/node_modules/
 frontend/dist/
-frontend/.vite/
-frontend/.vite-temp/
-frontend/.tmp/
 frontend/.biome_cache/
 frontend/.turbo/
 frontend/coverage/

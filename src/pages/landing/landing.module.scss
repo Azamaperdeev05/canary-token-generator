@@ -1,0 +1,472 @@
+// ==========================================
+// © Қармақ — Group A Profiler
+// landing.module.scss
+// ==========================================
+
+@use '@/styles/tokens' as *;
+@use '@/styles/fonts' as *;
+@use '@/styles/mixins' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: $space-4 $space-6 $space-16;
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.header {
+  margin-top: $space-6;
+  margin-bottom: $space-8;
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: $space-4;
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  text-transform: uppercase;
+  letter-spacing: $tracking-wide;
+  color: $signal;
+
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: $signal;
+    box-shadow: 0 0 8px $signal;
+    animation: pulse 2s infinite ease-in-out;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.headline {
+  font-family: $font-display;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: $font-weight-black;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: $ink;
+  margin: 0;
+}
+
+.subtitle {
+  font-family: $font-sans;
+  font-size: $font-size-base;
+  color: $ink-soft;
+  max-width: 720px;
+  line-height: $line-height-relaxed;
+}
+
+.actionsGroup {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  flex-wrap: wrap;
+}
+
+// Composite Hash Hero Box
+.hashBox {
+  background-color: $paper-deep;
+  border: $hairline-bold solid $rule;
+  border-radius: 4px;
+  padding: $space-4 $space-5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $space-4;
+  margin-bottom: $space-6;
+  box-shadow: 4px 4px 0 $rule;
+}
+
+.hashMeta {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.hashLabel {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  text-transform: uppercase;
+  color: $ink-mute;
+  letter-spacing: $tracking-wide;
+}
+
+.hashValue {
+  font-family: $font-mono;
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  font-weight: $font-weight-bold;
+  color: $ink;
+  letter-spacing: $tracking-tight;
+}
+
+.hashButtons {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+}
+
+// Summary Metrics Row
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $space-4;
+  margin-bottom: $space-8;
+}
+
+.metricCard {
+  background-color: $paper;
+  border: $hairline solid $rule;
+  padding: $space-4;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 3px 3px 0 $rule;
+  }
+}
+
+.metricIconTitle {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  text-transform: uppercase;
+  color: $ink-soft;
+  font-weight: $font-weight-bold;
+}
+
+.metricMain {
+  font-family: $font-display;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $ink;
+  line-height: 1.2;
+}
+
+.metricSub {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  color: $ink-mute;
+  word-break: break-all;
+}
+
+// Main Content Grid
+.contentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: $space-6;
+  margin-bottom: $space-8;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Canvas Preview Box
+.canvasPreviewContainer {
+  margin: $space-3 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.canvasBox {
+  border: $hairline solid $rule;
+  background-color: #fff;
+  border-radius: 3px;
+  padding: $space-2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+
+  img {
+    max-width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+  }
+}
+
+// Audio Waveform Visualization
+.audioWaveform {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 54px;
+  padding: $space-2;
+  background-color: $paper-deep;
+  border: $hairline solid $rule-soft;
+  border-radius: 3px;
+  margin: $space-3 0;
+}
+
+.waveformBar {
+  flex: 1;
+  background-color: $ink;
+  border-radius: 1px 1px 0 0;
+  min-height: 4px;
+  transition: height 0.2s ease, background-color 0.2s ease;
+
+  &:hover {
+    background-color: $alarm;
+  }
+}
+
+// Font tags cluster
+.fontTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-1-5;
+  margin: $space-3 0;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: $space-1;
+}
+
+// Status loading state
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: $space-6;
+  text-align: center;
+}
+
+.loadingSpinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid $paper-edge;
+  border-top-color: $ink;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingStep {
+  font-family: $font-mono;
+  font-size: $font-size-base;
+  color: $ink-soft;
+}
+
+.progressBar {
+  width: 320px;
+  max-width: 90vw;
+  height: 8px;
+  background-color: $paper-edge;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: $ink;
+  transition: width 0.2s ease;
+}
+
+// Lure Banner (The Canary Trap Link Box)
+.lureBanner {
+  background-color: $paper-deep;
+  border: 2px dashed $alarm;
+  border-radius: 6px;
+  padding: $space-5 $space-6;
+  margin-bottom: $space-8;
+  position: relative;
+  box-shadow: 4px 4px 0 rgba(196, 52, 28, 0.2);
+}
+
+.lureTag {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  text-transform: uppercase;
+  color: $alarm;
+  letter-spacing: $tracking-wide;
+  display: block;
+  margin-bottom: $space-1;
+}
+
+.lureTitle {
+  font-family: $font-display;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $ink;
+  margin: 0 0 $space-2 0;
+}
+
+.lureDesc {
+  font-family: $font-sans;
+  font-size: $font-size-sm;
+  color: $ink-soft;
+  margin: 0 0 $space-4 0;
+  max-width: 800px;
+  line-height: $line-height-relaxed;
+}
+
+.lureLinkBar {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  flex-wrap: wrap;
+}
+
+.lureUrl {
+  background-color: #ffffff;
+  border: $hairline solid $rule-soft;
+  border-radius: 4px;
+  padding: $space-2 $space-4;
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+  color: $alarm-deep;
+  font-weight: $font-weight-bold;
+  flex: 1;
+  min-width: 280px;
+  word-break: break-all;
+  user-select: all;
+}
+
+// Captured Targets Log Section
+.capturedSection {
+  margin-bottom: $space-12;
+}
+
+.capturedHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $space-3;
+  margin-bottom: $space-4;
+}
+
+.capturedTitle {
+  font-family: $font-display;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $ink;
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  margin: 0;
+}
+
+.capturedEmpty {
+  background-color: $paper;
+  border: $hairline solid $rule-hair;
+  border-radius: 4px;
+  padding: $space-8;
+  text-align: center;
+  color: $ink-mute;
+  font-family: $font-mono;
+  font-size: $font-size-sm;
+}
+
+.capturedGrid {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.capturedCard {
+  background-color: #ffffff;
+  border: $hairline solid $rule;
+  border-left: 4px solid $alarm;
+  border-radius: 4px;
+  padding: $space-4;
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  box-shadow: 2px 2px 0 $rule-hair;
+}
+
+.capturedTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $space-2;
+}
+
+.capturedTime {
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  color: $ink-mute;
+}
+
+.capturedDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: $space-2 $space-4;
+  font-size: $font-size-xs;
+  font-family: $font-mono;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+}
+
+.detailKey {
+  color: $ink-mute;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.detailVal {
+  color: $ink;
+  font-weight: $font-weight-bold;
+}
+
+// Footer
+.footer {
+  margin-top: auto;
+  padding-top: $space-8;
+  border-top: $hairline solid $rule-hair;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $space-4;
+  font-family: $font-mono;
+  font-size: $font-size-xs;
+  color: $ink-mute;
+}
