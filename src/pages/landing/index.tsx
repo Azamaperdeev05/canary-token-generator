@@ -19,6 +19,7 @@ import {
 } from 'react-icons/fi'
 import { toast } from 'sonner'
 import {
+  AuthGate,
   Button,
   DataRow,
   Pill,
@@ -164,6 +165,7 @@ export function Component(): React.ReactElement {
   } = data
 
   return (
+    <AuthGate>
     <div className={styles.page}>
       {/* Top Telemetry Strip */}
       <Strip>
@@ -734,6 +736,7 @@ export function Component(): React.ReactElement {
         </div>
       </footer>
     </div>
+    </AuthGate>
   )
 }
 
