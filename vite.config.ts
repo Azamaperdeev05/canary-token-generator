@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
 
   return {
-    base: '/canary-token-generator/',
+    base: '/',
     plugins: [react(), tsconfigPaths()],
 
     resolve: {

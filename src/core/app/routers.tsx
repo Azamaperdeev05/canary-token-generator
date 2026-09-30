@@ -3,7 +3,7 @@
 // routers.tsx
 // ===================
 
-import { createHashRouter, type RouteObject } from 'react-router-dom'
+import { createBrowserRouter, type RouteObject } from 'react-router-dom'
 import { ROUTES } from '@/config'
 import { Shell } from './shell'
 
@@ -27,4 +27,4 @@ const routes: RouteObject[] = [
   },
 ]
 
-export const router = createHashRouter(routes)
+export const router = createBrowserRouter(routes)

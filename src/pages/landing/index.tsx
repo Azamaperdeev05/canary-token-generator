@@ -40,8 +40,8 @@ export function Component(): React.ReactElement {
 
   const lureUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}${window.location.pathname}#/lure`
-      : 'https://azamaperdeev05.github.io/canary-token-generator/#/lure'
+      ? `${window.location.origin}/lure`
+      : 'https://qarmaq.vercel.app/lure'
 
   const loadCapturedLogs = () => {
     try {
