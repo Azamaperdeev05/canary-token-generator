@@ -83,3 +83,4 @@ bin/
 .cache/
 .pre-commit-cache/
 .ruff_cache/
+.vercel
