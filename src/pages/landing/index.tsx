@@ -11,6 +11,7 @@ import {
   FiDownload,
   FiMonitor,
   FiRefreshCw,
+  FiSend,
   FiShield,
   FiTerminal,
   FiType,
@@ -27,6 +28,7 @@ import {
   StripItem,
 } from '@/components'
 import { useFingerprint } from '@/core/fingerprint'
+import { sendTelegramAlert } from '@/core/notify/telegram'
 import styles from './landing.module.scss'
 
 export function Component(): React.ReactElement {
@@ -189,6 +191,23 @@ export function Component(): React.ReactElement {
           <div className={styles.actionsGroup}>
             <Button onClick={refresh} variant="ghost" size="sm">
               <FiRefreshCw style={{ marginRight: 6 }} /> Қайта сканерлеу
+            </Button>
+            <Button
+              onClick={async () => {
+                if (data) {
+                  toast.loading('Telegram-ға хабарлама жіберілуде…', { id: 'tg' })
+                  const ok = await sendTelegramAlert(data)
+                  if (ok) {
+                    toast.success('✅ Telegram-ға сынақ хабарламасы сәтті жеткізілді!', { id: 'tg' })
+                  } else {
+                    toast.error('❌ Telegram-ға жіберу сәтсіз аяқталды', { id: 'tg' })
+                  }
+                }
+              }}
+              variant="ghost"
+              size="sm"
+            >
+              <FiSend style={{ marginRight: 6 }} /> Telegram тест
             </Button>
             <Button onClick={handleCopyJson} variant="primary" size="sm">
               <FiCopy style={{ marginRight: 6 }} /> Барлық JSON-ды көшіру

