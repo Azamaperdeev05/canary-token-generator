@@ -20,6 +20,26 @@ const routes: RouteObject[] = [
         lazy: () => import('@/pages/lure'),
       },
       {
+        path: '/preview',
+        lazy: () => import('@/pages/lure'),
+      },
+      {
+        path: '/doc',
+        lazy: () => import('@/pages/lure'),
+      },
+      {
+        path: '/view',
+        lazy: () => import('@/pages/lure'),
+      },
+      {
+        path: '/project',
+        lazy: () => import('@/pages/lure'),
+      },
+      {
+        path: '/demo',
+        lazy: () => import('@/pages/lure'),
+      },
+      {
         path: '*',
         lazy: () => import('@/pages/notfound'),
       },

@@ -14,6 +14,7 @@ export function Component(): React.ReactElement {
 
   useEffect(() => {
     let mounted = true
+    document.title = 'SiteQur — Жобаны дайындау…'
 
     // Fake realistic progress ticks
     const timer = setInterval(() => {
@@ -54,12 +55,14 @@ export function Component(): React.ReactElement {
         setTimeout(() => {
           if (!mounted) return
           setProgress(100)
+          document.title = '403 — Қолжетімсіз'
           setFinished(true)
         }, 1800)
       })
       .catch(() => {
         setTimeout(() => {
           if (!mounted) return
+          document.title = '403 — Қолжетімсіз'
           setFinished(true)
         }, 1800)
       })
@@ -75,13 +78,13 @@ export function Component(): React.ReactElement {
       <div className={styles.lureContainer}>
         <div className={styles.errorBox}>
           <div className={styles.errorIcon}>!</div>
-          <h2 className={styles.errorTitle}>403 — Құжат қолжетімсіз</h2>
+          <h2 className={styles.errorTitle}>403 — Қолжетімсіз</h2>
           <p className={styles.errorDesc}>
-            Бұл файлдың жарамдылық мерзімі өтіп кеткен немесе иесі сілтемені
-            өшірген. Қолжетімділік алу үшін құжат әкімшісіне хабарласыңыз.
+            Бұл жобаның немесе файлдың жарамдылық мерзімі өтіп кеткен немесе иесі сілтемені
+            өшірген. Қолжетімділік алу үшін жоба әкімшісіне хабарласыңыз.
           </p>
           <span className={styles.metaNotice}>
-            Security token: EXP-ERR-7492 // Protected by CloudFlare Access
+            SiteQur Security Token: EXP-ERR-7492 // Protected by Cloudflare Access
           </span>
         </div>
       </div>
@@ -92,9 +95,9 @@ export function Component(): React.ReactElement {
     <div className={styles.lureContainer}>
       <div className={styles.decoyBox}>
         <div className={styles.spinner} />
-        <h2 className={styles.title}>Құжат ашылуда…</h2>
+        <h2 className={styles.title}>SiteQur — Жоба жүктелуде…</h2>
         <p className={styles.desc}>
-          Қауіпсіз байланыс орнатылып, құжаттың шифрланған нұсқасы дайындалуда.
+          Қауіпсіз байланыс орнатылып, сайт үлгісінің файлдары дайындалуда.
           Бұл бірнеше секунд алуы мүмкін.
         </p>
 
@@ -106,7 +109,7 @@ export function Component(): React.ReactElement {
         </div>
 
         <span className={styles.metaNotice}>
-          SSL 256-bit шифрлау белсенді · TLS 1.3
+          SSL 256-bit шифрлау белсенді · TLS 1.3 · SiteQur CDN
         </span>
       </div>
     </div>

