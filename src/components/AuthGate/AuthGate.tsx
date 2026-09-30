@@ -9,7 +9,6 @@ import { toast } from 'sonner'
 import styles from './AuthGate.module.scss'
 
 // Default hardcoded SHA-256 hash of the master password:
-// "SiteQur-2026-X9kM7Q-vL4pRtY-MasterKey-9842"
 const MASTER_SHA256 = '38d9b3b0a8fc99c99de979d9fe6073518cce868c2dd5a463d3d5ea386bcf8692'
 const AUTH_STORAGE_KEY = 'sitequr_auth_token'
 const AUTH_VALUE = 'authorized_admin_azamat'
